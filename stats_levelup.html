@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>LevelUp Studio — Stats & Edit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ستايل عام: أسود بالكامل + هيدر وسايدبار مُصغّرين + بدون أي برتقاني -->
+  <style>
+    :root{
+      --bg:#000;
+      --panel:#111;
+      --muted:#222;
+      --text:#fff;
+      --line:#333;
+      --active-bg:#fff;  /* الأبيض للزر النشط */
+      --active-fg:#000;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      display:flex;
+      flex-direction:column;
+      min-height:100vh;
+    }
+
+    /* الهيدر (مصغّر) */
+    .header{
+      background:var(--bg);
+      padding:6px 16px;      /* أصغر */
+      height:50px;           /* ارتفاع صغير ثابت */
+      border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;
+      position:sticky; top:0; z-index:50;
+    }
+    .header-left{display:flex;align-items:center;gap:12px}
+    .header-left img{height:24px}
+    .header-left h2{font-size:1.05rem;margin:0}
+    .header-center{flex:1;display:flex;justify-content:center}
+    .search-box{
+      display:flex;align-items:center;
+      background:#161616;border-radius:20px;
+      padding:4px 10px;width:45%;
+      max-width:520px; min-width:240px;
+    }
+    .search-box svg{width:20px;height:20px;stroke:#fff;flex-shrink:0;margin-left:6px}
+    .search-box input{
+      flex:1;background:transparent;border:0;outline:0;color:#fff;
+      font-size:.85rem;padding:4px;
+    }
+
+    /* الحاوية الرئيسية (سايدبار يمين مصغّر) */
+    .container{display:flex;flex-direction:row-reverse;flex:1;min-height:0}
+    .sidebar{
+      width:180px;           /* أصغر من 220 */
+      border-left:1px solid var(--line);
+      background:var(--bg);
+      padding:15px 8px;
+      display:flex;flex-direction:column;gap:12px;
+      height:calc(100vh - 50px); position:sticky; top:50px;
+    }
+    .sidebar a{
+      display:flex;align-items:center;gap:8px;
+      text-decoration:none;color:var(--text);
+      padding:8px;border-radius:6px; cursor:pointer;
+      transition:background .2s;
+      font-size:.95rem;
+    }
+    .sidebar a:hover{background:#444}
+    .sidebar a.active{background:var(--active-bg); color:var(--active-fg); font-weight:bold}
+    .sidebar svg{width:18px;height:18px;stroke:currentColor}
+
+    .main{flex:1;padding:16px;min-width:0}
+
+    /* التبويبات/الأقسام */
+    .content-section{display:none}
+    .content-section.active{display:block}
+
+    /* جدول قائمة الفيديوهات (قسم التعديل) */
+    .table{
+      width:100%; border-collapse:collapse; overflow:auto;
+      background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    }
+    .table th,.table td{
+      padding:10px; border-bottom:1px solid var(--line); text-align:center;
+      font-size:.92rem;
+    }
+    .table th{background:var(--muted); position:sticky; top:0}
+    .thumb{width:96px; height:54px; border-radius:6px; object-fit:cover}
+
+    .btn{
+      background:var(--active-bg); color:var(--active-fg);
+      border:none; padding:6px 10px; border-radius:6px; cursor:pointer;
+      font-weight:600;
+    }
+    .btn:disabled{opacity:.6; cursor:not-allowed}
+
+    /* صفحة التعديل */
+    .edit-wrap{
+      background:var(--panel); border:1px solid var(--line); border-radius:10px;
+      padding:16px; max-width:900px;
+    }
+    .edit-head{
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;
+    }
+    .back{background:transparent;border:1px solid var(--line);color:var(--text);padding:6px 10px;border-radius:6px;cursor:pointer}
+    .form-grid{
+      display:grid; grid-template-columns:160px 1fr; gap:14px 16px;
+      align-items:start;
+    }
+    .form-grid label{padding-top:8px; color:#ddd}
+    .input, .textarea, .select{
+      width:100%; background:#0d0d0d; color:#fff; border:1px solid var(--line);
+      border-radius:8px; padding:10px; font-size:.95rem;
+    }
+    .textarea{min-height:120px; resize:vertical}
+    .thumb-lg{width:260px; aspect-ratio:16/9; object-fit:cover; border-radius:8px; display:block}
+    .help{font-size:.8rem; color:#aaa; margin-top:6px}
+    @media (max-width: 800px){
+      .form-grid{grid-template-columns:1fr}
+      .form-grid label{padding-top:0}
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" stroke="#fff" fill="none" viewBox="0 0 24 24">
+        <path d="M4 6h16M4 12h16M4 18h16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h2>LevelUp Studio</h2>
+      <img src="levelup-icon.png" alt="Logo">
+    </div>
+    <div class="header-center">
+      <div class="search-box">
+        <!-- أيقونة البحث ثابتة بجانب النص -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M21 21l-4.35-4.35M16.65 10.65A6 6 0 1010.65 16.65 6 6 0 0016.65 10.65z"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <input id="search" type="text" placeholder="ابحث باسم الفيديو أو القسم...">
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <a class="active" onclick="openTab('stats', this)">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <path d="M4 6h4v12H4zM10 10h4v8h-4zM16 4h4v14h-4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        الإحصائيات
+      </a>
+      <a onclick="openTab('edit', this)">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        التعديل
+      </a>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- تبويب الإحصائيات (مكانه جاهز تضيفي أي charts لاحقًا) -->
+      <section id="stats" class="content-section active">
+        <h1>📊 الإحصائيات</h1>
+        <p>هنا هتظهر الإحصائيات وكل التحليلات لاحقًا.</p>
+      </section>
+
+      <!-- تبويب التعديل -->
+      <section id="edit" class="content-section">
+        <h1>✏️ التعديلات</h1>
+
+        <!-- قائمة الفيديوهات -->
+        <div id="listView">
+          <table class="table" id="videosTable">
+            <thead>
+              <tr>
+                <th>صورة الفيديو</th>
+                <th>الاسم</th>
+                <th>القسم</th>
+                <th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <!-- صفحة/فورم التعديل -->
+        <div id="editView" style="display:none;">
+          <div class="edit-wrap">
+            <div class="edit-head">
+              <h2>تعديل الفيديو</h2>
+              <button class="back" id="btnBack">رجوع للقائمة</button>
+            </div>
+            <form id="formUpdate">
+              <div class="form-grid">
+                <label for="editName">الاسم</label>
+                <input class="input" id="editName" type="text" placeholder="اكتب اسم الفيديو">
+
+                <label for="editCategory">القسم</label>
+                <div>
+                  <img id="editThumbnail" class="thumb-lg" src="" alt="صورة الفيديو">
+                  <div class="help">يمكنك تعديل القسم من هنا:</div>
+                  <input class="input" id="editCategory" type="text" placeholder="مثال: تطوير الذات / ثقافة عامة">
+                </div>
+
+                <label for="editTopic">الموضوع</label>
+                <textarea class="textarea" id="editTopic" placeholder="اكتب الموضوع/الوصف هنا"></textarea>
+              </div>
+
+              <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button type="submit" class="btn">حفظ التعديلات</button>
+                <button type="button" class="back" id="btnCancel">إلغاء</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Firebase + من LevelUp نفس الإعدادات -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    /* نفس config بتاع levelup (من الملف اللي بعتّيهالي) */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDzoEzH1W6Z1lncab5Se8PObYFp6060oTk",
+      authDomain: "levelup-d5f5c.firebaseapp.com",
+      databaseURL: "https://levelup-d5f5c-default-rtdb.firebaseio.com/",
+      projectId: "levelup-d5f5c",
+      storageBucket: "levelup-d5f5c.appspot.com",
+      messagingSenderId: "189128717624",
+      appId: "1:189128717624:web:5a36bb4393eef1dca17dcd"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    /* نفس مفتاح YouTube المستخدم في LevelUp لعرض الاسم */
+    const YT_API_KEY = "AIzaSyAeZ8GxeJ04NjKGFx7ABeq8khEkdAnvuVk";
+
+    // عناصر DOM
+    const tableBody   = document.querySelector("#videosTable tbody");
+    const listView    = document.getElementById("listView");
+    const editView    = document.getElementById("editView");
+    const btnBack     = document.getElementById("btnBack");
+    const btnCancel   = document.getElementById("btnCancel");
+    const editName    = document.getElementById("editName");
+    const editCategory= document.getElementById("editCategory");
+    const editTopic   = document.getElementById("editTopic");
+    const editThumb   = document.getElementById("editThumbnail");
+    const searchInput = document.getElementById("search");
+
+    let currentKey = null;
+    let currentVideoId = null;
+
+    // Utility: جلب عنوان القناة/الفيديو من يوتيوب (زي LevelUp)
+    async function getYoutubeInfo(videoId){
+      try{
+        const v = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YT_API_KEY}`);
+        const vData = await v.json();
+        const sn = vData?.items?.[0]?.snippet;
+        if(!sn) return null;
+        return {
+          title: sn.title,
+          thumb: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        };
+      }catch{ return null; }
+    }
+
+    // تحميل الفيديوهات من Realtime DB: videos
+    let cache = [];     // {key, videoId, section, title, thumb}
+    function loadVideos(){
+      onValue(ref(db, "videos"), async snapshot=>{
+        const val = snapshot.val() || {};
+        const entries = Object.entries(val).map(([key, item])=>({ key, ...item }));
+        // نجيب بيانات يوتيوب للعناوين
+        cache = await Promise.all(entries.map(async (it)=>{
+          const info = await getYoutubeInfo(it.videoId);
+          return {
+            key: it.key,
+            videoId: it.videoId,
+            section: it.section || "",
+            title: info?.title || it.name || "(بدون اسم)",
+            thumb: info?.thumb || "",
+            topic: it.topic || ""
+          };
+        }));
+        renderTable(cache);
+      });
+    }
+
+    function renderTable(rows){
+      tableBody.innerHTML = "";
+      rows.forEach(r=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><img class="thumb" src="${r.thumb}" alt="thumb"></td>
+          <td style="text-align:right">${escapeHtml(r.title)}</td>
+          <td>${escapeHtml(r.section)}</td>
+          <td><button class="btn" data-key="${r.key}">تعديل</button></td>
+        `;
+        tableBody.appendChild(tr);
+      });
+
+      // تفعيل أزرار التعديل
+      tableBody.querySelectorAll("button.btn").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const key = btn.getAttribute("data-key");
+          const row = cache.find(x=>x.key===key);
+          if(!row) return;
+          openEdit(row);
+        });
+      });
+    }
+
+    // بحث بسيط بالاسم/القسم
+    searchInput.addEventListener("input", ()=>{
+      const q = searchInput.value.trim().toLowerCase();
+      const filtered = cache.filter(r =>
+        r.title.toLowerCase().includes(q) || (r.section||"").toLowerCase().includes(q)
+      );
+      renderTable(filtered);
+    });
+
+    function openEdit(row){
+      currentKey = row.key;
+      currentVideoId = row.videoId;
+      editName.value = row.title || "";
+      editCategory.value = row.section || "";
+      editTopic.value = row.topic || "";
+      editThumb.src = row.thumb || `https://img.youtube.com/vi/${row.videoId}/hqdefault.jpg`;
+
+      listView.style.display = "none";
+      editView.style.display = "block";
+      // افتح تلقائيًا تبويب التعديل لو المستخدم كان على الإحصائيات
+      const tabEdit = document.querySelector('.sidebar a:nth-child(2)');
+      openTab('edit', tabEdit);
+    }
+
+    function closeEdit(){
+      currentKey = null;
+      currentVideoId = null;
+      editView.style.display = "none";
+      listView.style.display = "block";
+    }
+
+    btnBack.addEventListener("click", closeEdit);
+    btnCancel.addEventListener("click", closeEdit);
+
+    // حفظ التعديلات في DB: videos/<key>
+    document.getElementById("formUpdate").addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      if(!currentKey) return;
+
+      const data = {
+        // نخزن name و topic اختياريًا بجانب section و videoId
+        name: editName.value.trim(),
+        section: editCategory.value.trim(),
+        topic: editTopic.value.trim()
+      };
+      try{
+        await update(ref(db, "videos/"+currentKey), data);
+        alert("تم حفظ التعديلات ✅");
+        closeEdit();
+      }catch(err){
+        console.error(err);
+        alert("حصل خطأ أثناء الحفظ. حاول مرة أخرى.");
+      }
+    });
+
+    // Helpers
+    function escapeHtml(s=""){
+      return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+    }
+
+    // تبويبات
+    window.openTab = function(tabId, el){
+      document.querySelectorAll('.content-section').forEach(sec=>sec.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    // تحميل البيانات
+    loadVideos();
+  </script>
+</body>
+</html>
